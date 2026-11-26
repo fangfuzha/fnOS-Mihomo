@@ -8,6 +8,6 @@
     "description": "自研飞牛 NAS 应用的第三方应用源"
   },
   "categories": ["系统工具"],
-  "readme_url": "https://github.com/fangfuzha/fnOS-Mihomo/blob/main/README.md",
+  "readme_url": "https://raw.githubusercontent.com/fangfuzha/fnOS-Mihomo/main/README.md",
   "bug_report_url": "https://github.com/fangfuzha/fnOS-Mihomo/issues"
 }

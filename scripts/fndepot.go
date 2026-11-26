@@ -460,10 +460,10 @@ func buildSource(o *fndepotOpts) (*fndepot.Source, error) {
 	}
 	if strings.Contains(repoURL, "github.com") {
 		if o.readmeURL == "" {
-			o.readmeURL = strings.TrimRight(repoURL, "/") + "/blob/main/README.md"
+			o.readmeURL = deriveReadmeURL(repoURL)
 		}
 		if o.bugURL == "" {
-			o.bugURL = strings.TrimRight(repoURL, "/") + "/issues"
+			o.bugURL = deriveBugURL(repoURL)
 		}
 	}
 
@@ -559,6 +559,25 @@ func (o *fndepotOpts) buildRelease() (fndepot.Release, error) {
 		}
 	}
 	return rel, nil
+}
+
+// deriveReadmeURL 从仓库地址推出 README 的原始文件地址。
+//
+// 要的是 raw 地址，不是 blob 页面：blob 是 HTML 页，
+// 客户端把整页（含导航与页脚）当 Markdown 渲染，详情页会一塌糊涂。
+func deriveReadmeURL(repoURL string) string {
+	trimmed := strings.TrimRight(repoURL, "/")
+	// https://github.com/owner/repo → https://raw.githubusercontent.com/owner/repo
+	rest := strings.TrimPrefix(trimmed, "https://github.com/")
+	if rest == trimmed {
+		return trimmed + "/blob/main/README.md"
+	}
+	return "https://raw.githubusercontent.com/" + rest + "/main/README.md"
+}
+
+// deriveBugURL 从仓库地址推出问题反馈地址。
+func deriveBugURL(repoURL string) string {
+	return strings.TrimRight(repoURL, "/") + "/issues"
 }
 
 // isRemoteURL 判断是不是完整的远程地址。
