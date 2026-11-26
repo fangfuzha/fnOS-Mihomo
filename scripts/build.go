@@ -385,10 +385,14 @@ func packWithFnpack(fnpack string, stage string, out string) error {
 	}
 
 	run := func(nosign bool) error {
-		args := []string{"build"}
-		args = append(args, signArgs...)
+		var args []string
 		if nosign {
-			args = append(args, "--nosign")
+			// 明确不签就别再带证书参数：
+			// 1.3.x 里 --nosign 与 --key/--cert 一起给不一定认。
+			args = []string{"build", "--nosign"}
+		} else {
+			args = []string{"build"}
+			args = append(args, signArgs...)
 		}
 		args = append(args, "--directory", ".")
 		cmd := exec.Command(fnpack, args...)
