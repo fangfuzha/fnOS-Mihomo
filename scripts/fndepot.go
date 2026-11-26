@@ -376,7 +376,7 @@ func loadSource(path string) (*fndepot.Source, error) {
 // 别的应用条目与老版本都留着：源仓库通常有不止一个应用，
 // 也不能因为重新生成一次索引就把历史版本弄丢。
 func mergeApp(src *fndepot.Source, o *fndepotOpts, built *fndepot.Source) error {
-	app, _, err := built.App(o.appKey)
+	fresh, _, err := built.App(o.appKey)
 	if err != nil {
 		return err
 	}
@@ -384,15 +384,12 @@ func mergeApp(src *fndepot.Source, o *fndepotOpts, built *fndepot.Source) error 
 	if err != nil {
 		return err
 	}
+	app := fresh
 	if has {
-		for v, rel := range app.Releases {
-			merged, err := fndepot.MergeRelease(old, v, rel)
-			if err != nil {
-				return err
-			}
-			old = merged
+		// 应用级字段取新的，老版本留作历史。
+		if app, err = fndepot.MergeApp(old, fresh); err != nil {
+			return err
 		}
-		app = old
 	}
 	return src.SetApp(o.appKey, app)
 }

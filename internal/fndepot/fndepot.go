@@ -170,18 +170,77 @@ func MergeRelease(app App, version string, rel Release) (App, error) {
 	}
 	old, exists := app.Releases[version]
 	if exists {
-		for arch, p := range rel.Packages {
-			oldPkg, ok := old.Packages[arch]
-			if !ok {
-				continue
-			}
-			if oldPkg.SHA256 != "" && p.SHA256 != "" && oldPkg.SHA256 != p.SHA256 {
-				return app, fmt.Errorf("版本 %s 的 %s 包已经存在且内容不同，请升版本号再发", version, arch)
-			}
+		if err := checkImmutable(version, old, rel); err != nil {
+			return app, err
 		}
+		rel = inheritDigest(old, rel)
 	}
 	app.Releases[version] = rel
 	return app, nil
+}
+
+// MergeApp 把一个新应用条目并进已有的应用条目。
+//
+// 应用级字段（readme_url、简介、分类、图标……）取新的 ——
+// 那些是从 manifest 与配置推出来的，新的是准的；
+// 老版本留在 releases 里当历史。
+//
+// 之前这里直接沿用旧条目，导致改了 readme_url 之类也推不出去：
+// 源里永远停在上一次的样子。
+func MergeApp(old App, fresh App) (App, error) {
+	merged := fresh
+	if merged.Releases == nil {
+		merged.Releases = map[string]Release{}
+	}
+	for v, rel := range old.Releases {
+		if _, ok := merged.Releases[v]; !ok {
+			merged.Releases[v] = rel
+		}
+	}
+	for v, rel := range fresh.Releases {
+		oldRel, ok := old.Releases[v]
+		if !ok {
+			continue
+		}
+		if err := checkImmutable(v, oldRel, rel); err != nil {
+			return old, err
+		}
+		merged.Releases[v] = inheritDigest(oldRel, rel)
+	}
+	return merged, nil
+}
+
+// checkImmutable 比对同一版本的新旧条目：包内容变了要报错。
+func checkImmutable(version string, old Release, fresh Release) error {
+	for arch, p := range fresh.Packages {
+		oldPkg, ok := old.Packages[arch]
+		if !ok {
+			continue
+		}
+		if oldPkg.SHA256 != "" && p.SHA256 != "" && oldPkg.SHA256 != p.SHA256 {
+			return fmt.Errorf("版本 %s 的 %s 包已经存在且内容不同，请升版本号再发", version, arch)
+		}
+	}
+	return nil
+}
+
+// inheritDigest 新条目没带摘要时沿用旧的。
+//
+// 已经发布过的版本，校验信息不该被抹掉 ——
+// 客户端会强制校验 sha256，抹掉等于让所有人重新下载同一个包。
+func inheritDigest(old Release, fresh Release) Release {
+	for arch, p := range fresh.Packages {
+		oldPkg, ok := old.Packages[arch]
+		if !ok {
+			continue
+		}
+		if oldPkg.SHA256 != "" && p.SHA256 == "" {
+			p.SHA256 = oldPkg.SHA256
+			p.Size = oldPkg.Size
+			fresh.Packages[arch] = p
+		}
+	}
+	return fresh
 }
 
 // Validate 按 V2 规范逐项检查一个应用。
