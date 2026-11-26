@@ -129,6 +129,12 @@ func downloadFnpack(version, plat, out string) error {
 	if err := downloadFile(url, out); err != nil {
 		return err
 	}
+	// 下载器用 os.Create 写文件，权限是 0644：Windows 上无所谓，
+	// Linux 上直接 fork/exec 会报 permission denied。
+	// CI 上第一次发版就是这么失败的 —— 打包器下下来却跑不起来。
+	if err := makeExecutable(out); err != nil {
+		return err
+	}
 	if want, ok := fnpackSHA256[version+" "+runtime.GOOS+"/"+runtime.GOARCH]; ok {
 		got, err := fileSHA256(out)
 		if err != nil {
@@ -140,6 +146,17 @@ func downloadFnpack(version, plat, out string) error {
 		fmt.Printf("    摘要校验通过 %s\n", got)
 	}
 	return nil
+}
+
+// makeExecutable 给文件加上可执行位。
+//
+// 下载来的文件默认是 0644，只有 Windows 上不讲究这个；
+// Linux / macOS 上没有可执行位就 fork/exec 不动。
+func makeExecutable(path string) error {
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+	return os.Chmod(path, 0o755)
 }
 
 // validateFnpack 拿一个最小包试打一下，确认这个 fnpack 在本机真能出包。
