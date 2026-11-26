@@ -83,6 +83,8 @@
 - 不要把密钥、订阅链接、NAS 密码写进代码或提交进仓库。
 - NAS 密码只放在项目根目录的 `.env`（已 gitignore），模板是 `.env.example`。**不要再把凭据写进任何源码** —— 包括 `scripts/deploy/`：它只从 `.env` 读参数，源码里不许出现地址或密码。
 - 应用源仓库（`fangfuzha/FnDepot`）的写 token 只进 GitHub Secrets（`FNDEPOT_TOKEN`），源码里只读环境变量。`fndepot publish` 的 token 优先级：`--token` > `FNDEPOT_TOKEN` > `GH_TOKEN` > `GITHUB_TOKEN`。
+- 私钥类的东西一律只进 GitHub Secrets，源码与文档里都不许出现内容：`FNPACK_KEY`/`FNPACK_CERT`（fnpack 开发者证书）、`GPG_PRIVATE_KEY`/`GPG_PASSPHRASE`（GPG 私钥与口令）。
+- FnDepot 客户端只校验索引里的 `sha256`，协议里没有签名字段：要让用户能验「来源」，靠 fnpack 开发者证书（fnOS 原生）或 GPG 签 `SHA256SUMS`（人工）。CI 的 release.yml 两者都做，缺哪个都还能发。
 - 日志里不要打印完整订阅链接（里面有机场 token），必要时脱敏。
 - `secret` 字段为空时不能写成 `secret: ""`（yaml.v3 会输出六个单引号），用 `*string` 让该字段不输出。
 - 面板口令只存 PBKDF2 哈希（`internal/settings/password.go`），别改成明文落盘。

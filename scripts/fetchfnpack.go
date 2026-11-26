@@ -30,6 +30,19 @@ const fnpackBase = "https://static2.fnnas.com/fnpack"
 // 打不出包就直接报错，不会把坏工具留下来。
 const fnpackVersion = "1.2.3"
 
+// resolveFnpackVersion 决定这次用哪个版本的打包器。
+//
+// 环境变量 FNPACK_VERSION 可以指定版本：
+// CI 在 Linux 上用 1.3.3，因为 1.3.x 才支持开发者证书签名
+// （fnpack build --key --cert），而它的 Windows 构建有缺陷，
+// 本机还得留在 1.2.3。
+func resolveFnpackVersion() string {
+	if v := strings.TrimSpace(os.Getenv("FNPACK_VERSION")); v != "" {
+		return v
+	}
+	return fnpackVersion
+}
+
 // fnpackStateFile 记录本地这份 fnpack 的版本与可用性。
 const fnpackStateFile = "state.json"
 
@@ -100,24 +113,25 @@ func ensureFnpack(dir string) error {
 	}
 	out := filepath.Join(dir, name)
 
+	version := resolveFnpackVersion()
 	state := readFnpackState(dir)
 	// 本地这份就是这一版、这一平台，而且试打过能用，就别再折腾了。
-	if state.Version == fnpackVersion && state.Platform == key && state.Verified && fileExists(out) {
-		fmt.Printf("已是可用版本，跳过: %s (%s %s)\n", out, fnpackVersion, key)
+	if state.Version == version && state.Platform == key && state.Verified && fileExists(out) {
+		fmt.Printf("已是可用版本，跳过: %s (%s %s)\n", out, version, key)
 		return nil
 	}
 
-	if err := downloadFnpack(fnpackVersion, plat, out); err != nil {
+	if err := downloadFnpack(version, plat, out); err != nil {
 		return err
 	}
 	if err := validateFnpack(out); err != nil {
-		return fmt.Errorf("fnpack %s 在本机打不出包: %w", fnpackVersion, err)
+		return fmt.Errorf("fnpack %s 在本机打不出包: %w", version, err)
 	}
-	state = fnpackState{Version: fnpackVersion, Platform: key, Verified: true}
+	state = fnpackState{Version: version, Platform: key, Verified: true}
 	if err := writeFnpackState(dir, state); err != nil {
 		return err
 	}
-	fmt.Printf("使用 fnpack %s (%s)\n", fnpackVersion, key)
+	fmt.Printf("使用 fnpack %s (%s)\n", version, key)
 	return nil
 }
 

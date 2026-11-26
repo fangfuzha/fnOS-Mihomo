@@ -73,6 +73,9 @@ jobs:
           # 配了这两项就签出可上架应用中心的包；没配就是未签名包。
           FNPACK_KEY: ${{ secrets.FNPACK_KEY }}
           FNPACK_CERT: ${{ secrets.FNPACK_CERT }}
+          # CI 跑在 Linux 上，用 1.3.3：1.2.x 不支持开发者证书签名，
+          # 而 1.3.x 的 Windows 构建有缺陷（本地还是留在 1.2.3）。
+          FNPACK_VERSION: "1.3.3"
 
       - name: 核对版本号
         # tag 与 manifest 的版本必须一致：产物名是按 manifest 版本拼的，
@@ -126,6 +129,43 @@ jobs:
             --fpk "arm=build/Mihomo-${VERSION}-arm64.fpk" \
             --check-release \
             --token "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: 生成校验和与 GPG 签名
+        # 给人工验证用。
+        #
+        # FnDepot 客户端只校验索引里的 sha256（完整性），协议里没有签名字段，
+        # 它不会验 GPG —— 这一层是给人确认「这个包确实是你发的」。
+        # 要让 fnOS 自己验发布者身份，用的是上面那个开发者证书（FNPACK_KEY/FNPACK_CERT）。
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GPG_SIGNING_KEY: ${{ vars.GPG_SIGNING_KEY }}
+        run: |
+          set -e
+          cd build
+          sha256sum Mihomo-*.fpk > SHA256SUMS
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+            if [ -n "$GPG_SIGNING_KEY" ]; then
+              echo "$GPG_PASSPHRASE" | gpg --batch --pinentry-mode loopback \
+                --passphrase-fd 0 --local-user "$GPG_SIGNING_KEY" \
+                --armor --detach-sign --output SHA256SUMS.asc SHA256SUMS
+            else
+              echo "$GPG_PASSPHRASE" | gpg --batch --pinentry-mode loopback \
+                --passphrase-fd 0 \
+                --armor --detach-sign --output SHA256SUMS.asc SHA256SUMS
+            fi
+            echo "已生成 SHA256SUMS.asc"
+          else
+            echo "没配 GPG_PRIVATE_KEY：只生成未签名的 SHA256SUMS"
+          fi
+          cd ..
+          gh release upload "$GITHUB_REF_NAME" build/SHA256SUMS --clobber
+          if [ -f build/SHA256SUMS.asc ]; then
+            gh release upload "$GITHUB_REF_NAME" build/SHA256SUMS.asc --clobber
+          fi
 
       - name: 更新 FnDepot 应用源
         # 客户端只认源仓库里的 fnpack.json：版本号不写进去，

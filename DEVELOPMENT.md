@@ -224,7 +224,7 @@ go build -o build/tools/fnos-mihomo-tools ./scripts   # 先编译再调用
 | `fetch_mihomo` | 下载 mihomo 内核（双架构）到 `assets/`，`MIHOMO_VERSION` 可指定版本 |
 | `fetch_dashboard` | 下载第三方面板归档到 `assets/`，本地已是最新就跳过 |
 | `fetch_geodata` | 下载 geodata 到 `assets/geodata/`，已存在就跳过（`GEODATA_VERSION` 可固定版本） |
-| `fetch_fnpack` | 下载 fnpack 打包器到 `build/fnpack/`（版本固定 1.2.3），并拿最小包试打确认能用 |
+| `fetch_fnpack` | 下载 fnpack 打包器到 `build/fnpack/`（默认 1.2.3，`FNPACK_VERSION` 可指定），并拿最小包试打确认能用 |
 | `build [amd64\|arm64\|all]` | 打包出 `.fpk`：暂存、交叉编译面板、解压内核、同步资源、前端校验、打包 |
 | `fndepot build\|publish\|check\|verify` | FnDepot 外部源索引：生成/推送 `fnpack.json`、按 V2 规范校验、三层核对（索引 ↔ 包 ↔ Release） |
 
@@ -346,6 +346,40 @@ blobs → tree → commit → ref），不是两次写入两个提交。
 
 实测：源仓库 7 个提交、9 KB。每发一版大约 +1 个提交、+3 KB；
 发 100 版也就几百 KB，这个量级不用担心。
+### 签名与验证：三条不同的路
+
+| 层 | 手段 | 谁来验 | 配在哪 |
+|---|---|---|---|
+| 完整性（客户端自动） | 索引里的 `sha256` + `size` | FnDepot 客户端，强制校验 | 自动生成，不用配 |
+| 来源可信（fnOS 原生） | fnpack 开发者证书签名 | fnOS 应用中心 | Secrets：`FNPACK_KEY`、`FNPACK_CERT` |
+| 来源可信（人工） | GPG 签 `SHA256SUMS` | 人，`gpg --verify` | Secrets：`GPG_PRIVATE_KEY`、`GPG_PASSPHRASE`；变量：`GPG_SIGNING_KEY` |
+
+**客户端能自动验的只有 sha256。** FnDepot 外部源 V2 的 `packages` 字段里
+只有 `download_url`、`sha256`、`size`，没有签名字段 ——
+客户端不会验任何签名。想要「这个包确实是你发的」，得靠下面两条。
+
+**fnOS 的开发者证书签名。** fnpack 1.3.x 起支持：
+``fnpack build --key developer.key --cert developer.crt`。
+1.2.x 不支持签名（本地 Windows 用的就是它）。CI 跑在 Linux 上，
+用 `FNPACK_VERSION=1.3.3` 就能出签名包 —— 1.3.x 的 Windows 构建有缺陷，
+但那个缺陷只在 Windows 上。
+
+证书要向飞牛官方申请（`fnpack cert import -key ./developer.key -crt ./developer.crt`）。
+没配证书时 1.3.3 会先试普通打包（失败），再自动退回 `--nosign` 出未签名包 —— 流程不会断。
+
+**GPG 签名。** CI 会把两个包的 SHA256 写成 `SHA256SUMS`，
+配了 `GPG_PRIVATE_KEY` 就再签一份 `SHA256SUMS.asc` 一起挂到 Release 上：
+
+```bash
+gpg --verify SHA256SUMS.asc
+sha256sum -c SHA256SUMS
+```
+
+本地打 tag 时也可以 `git tag -s v1.1.0`（签名 tag），
+这样「这个 tag 是你打的」也有据可查。
+
+> 签 `SHA256SUMS` 而不是直接签 50MB 的包：摘要文件小得多，验起来也快；
+> 索引里的 sha256 与这个文件是同一份数字。
 ### 仓库密钥
 
 | 密钥 | 用途 |
