@@ -226,7 +226,7 @@ go build -o build/tools/fnos-mihomo-tools ./scripts   # 先编译再调用
 | `fetch_geodata` | 下载 geodata 到 `assets/geodata/`，已存在就跳过（`GEODATA_VERSION` 可固定版本） |
 | `fetch_fnpack` | 下载 fnpack 打包器到 `build/fnpack/`（版本固定 1.2.3），并拿最小包试打确认能用 |
 | `build [amd64\|arm64\|all]` | 打包出 `.fpk`：暂存、交叉编译面板、解压内核、同步资源、前端校验、打包 |
-| `fndepot build\|publish\|check` | FnDepot 外部源索引：生成/推送 `fnpack.json`、按 V2 规范校验 |
+| `fndepot build\|publish\|check\|verify` | FnDepot 外部源索引：生成/推送 `fnpack.json`、按 V2 规范校验、三层核对（索引 ↔ 包 ↔ Release） |
 
 `check_frontend` 是打包前的关卡。历史上出过两次「语法检查通过但页面是坏的」
 （`app.js` 被截断导致函数丢失），所以它不只查语法，还查关键函数在不在、
@@ -298,6 +298,54 @@ FNDEPOT_TOKEN=xxx go run ./scripts fndepot publish --fpk ... --fpk ...
 源元数据（源名称、作者、分类、README 地址）在 §fndepot/source.json§ 里，
 CI 与本地读同一份；命令行参数优先级高于配置文件。
 
+### 验证：推之前先核对
+
+```text
+索引        包内 manifest        Release 资产
+  |              |                   |
+  +-- appname/version/platform       |
+  +-- sha256 / size ------------------+
+```
+
+三层有两头，任何一头对不上，用户看到的都是坏东西：
+
+- **索引 ↔ 包内 manifest**：应用键、版本、架构。键不符，客户端会直接跳过这个应用；
+  版本不符，装上去的是另一个版本，升级判断全乱。
+- **索引 ↔ 本地包**：sha256 与字节数。客户端强制校验摘要，对不上就是装失败。
+- **索引 ↔ Release 资产**：资产摘要与大小。用 GitHub API 直接查（它给 digest 与 size），
+  不用把 50MB 的包下载下来。
+- **图标**：得是真 PNG，且不超过 500KB。
+
+```bash
+go run ./scripts fndepot verify \
+  --file build/fnpack.json \
+  --icon fnos/ICON.PNG \
+  --fpk x86=build/Mihomo-1.0.0-x86.fpk \
+  --fpk arm=build/Mihomo-1.0.0-arm64.fpk \
+  --check-release \
+  --token `$GITHUB_TOKEN`
+```
+
+`release.yml` 里「核对索引与 Release」这一步就是它：对不上直接让发版失败，
+源仓库不会被写坏。CI 的检查工作流里跑的是前两层（那时还没有 Release 可查）。
+
+### 提交策略：源仓库会不会胀
+
+**包不进源仓库。** 安装包本体放在应用仓的 GitHub Release 上，源仓库只放索引与图标。
+这是源仓库不胀的根本原因 —— 包放进去的话一次就是 50MB，
+而且 git 历史删不掉，几轮发版就上百 MB。
+
+**一次发布一个提交。** 索引与图标进同一个 commit（Git Data API：
+blobs → tree → commit → ref），不是两次写入两个提交。
+
+**没变就不提交。** 写之前先比 blob sha：图标每次发版都一样，
+同一版本的内容也一样，一样就跳过。没有变化时整个发布不产生任何提交。
+
+**同一版本重发时发布时间不变。** 包没变就别改 `updated_at`，
+否则内容每次都不同，提交历史会平白多一倍。
+
+实测：源仓库 7 个提交、9 KB。每发一版大约 +1 个提交、+3 KB；
+发 100 版也就几百 KB，这个量级不用担心。
 ### 仓库密钥
 
 | 密钥 | 用途 |

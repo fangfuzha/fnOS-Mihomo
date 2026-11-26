@@ -70,4 +70,24 @@ func TestMergeApp(t *testing.T) {
 			t.Fatalf("大小没沿用: %d", got.Size)
 		}
 	})
+
+	t.Run("包没变时发布时间不变", func(t *testing.T) {
+		old := validApp()
+		oldRel := old.Releases["1.0.0"]
+		oldRel.UpdatedAt = "2026-11-26T13:00:00+08:00"
+		old.Releases["1.0.0"] = oldRel
+
+		fresh := validApp()
+		freshRel := fresh.Releases["1.0.0"]
+		freshRel.UpdatedAt = "2026-11-26T15:00:00+08:00"
+		fresh.Releases["1.0.0"] = freshRel
+
+		merged, err := MergeApp(old, fresh)
+		if err != nil {
+			t.Fatalf("合并失败: %v", err)
+		}
+		if merged.Releases["1.0.0"].UpdatedAt != old.Releases["1.0.0"].UpdatedAt {
+			t.Fatalf("包没变却改了发布时间: %q", merged.Releases["1.0.0"].UpdatedAt)
+		}
+	})
 }

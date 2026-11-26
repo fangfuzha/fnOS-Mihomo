@@ -21,6 +21,7 @@
 - 下载第三方面板归档：`go run ./scripts fetch_dashboard`（装到 `assets/`，本地已是最新就跳过）
 - 生成 FnDepot 源索引：`go run ./scripts fndepot build --out build/fnpack.json --icon fnos/ICON.PNG --fpk x86=<包> --fpk arm=<包>`
 - 校验 FnDepot 源索引：`go run ./scripts fndepot check --file build/fnpack.json`
+- 核对 FnDepot 源索引与安装包：`go run ./scripts fndepot verify --file build/fnpack.json --fpk x86=<包> --fpk arm=<包>`
 
 ## Project layout
 
@@ -52,6 +53,8 @@
 - Go：内核启停只走 `internal/core`：`Restart` 是原子的（停 + 起一把锁，别拆成两步），「内核已经在跑」用 `core.ErrAlreadyRunning` 表达 —— 调用方分「目标已达成」和「真失败」两种态度，别一律当错误。
 - 打包产物名带版本号：`Mihomo-<版本>-<架构>.fpk`。FnDepot 规范要求「版本号 + 架构」的包文件视为不可变，同名文件换内容，客户端缓存会让一部分人永远装到旧包。
 - `fnpack.json`（FnDepot 外部源索引）只由 `go run ./scripts fndepot` 生成与校验，别手写 —— 客户端对格式很严，JSON 语法错会让整个源同步失败。
+- 推源之前必须核对：`go run ./scripts fndepot verify`（索引 ↔ 包内 manifest ↔ Release 资产）。键、版本、架构、摘要、字节数对不上就别推。
+- 应用包不进源仓库：包放各自项目的 GitHub Release，源仓库只放索引与图标。放进去 git 历史删不掉，源仓库会迅速胀起来。
 - 前端：不引入框架，只用原生 `fetch` 与 DOM API；在 fnOS 桌面的 iframe 里跑得更稳。
 - 前端：样式在 `web/app.css` 里（`index.html` 用 `<link>` 引），沿用 GitHub Dark 色板（背景 `#0f1419`、卡片 `#161b22`、边框 `#30363d`、强调 `#1f6feb`）。
 - 前端：暗色页面必须声明 `color-scheme: dark`，否则浏览器会画白色滚动条。

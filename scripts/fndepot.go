@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"flag"
@@ -45,6 +44,7 @@ type fndepotOpts struct {
 	merge     string
 	config    string
 	dryRun    bool
+	fresh     bool
 	repo      string
 	branch    string
 	token     string
@@ -105,6 +105,8 @@ func cmdFnDepot(args []string) error {
 		return fndepotPublish(args[1:])
 	case "check":
 		return fndepotCheck(args[1:])
+	case "verify":
+		return fndepotVerify(args[1:])
 	default:
 		return fmt.Errorf("未知子命令 %q，可用：build / publish / check", args[0])
 	}
@@ -120,6 +122,7 @@ func parseFnDepotFlags(name string, args []string) (*fndepotOpts, error) {
 	fs.StringVar(&o.repo, "repo", "", "应用源仓库，格式 owner/name（默认取配置文件）")
 	fs.StringVar(&o.branch, "branch", "", "应用源仓库的分支（默认取配置文件）")
 	fs.StringVar(&o.config, "config", "", "源配置文件（默认 fndepot/source.json）")
+	fs.BoolVar(&o.fresh, "fresh", false, "build 用：不拿已有的 fnpack.json 当底稿，重新生成")
 	fs.StringVar(&o.token, "token", "", "GitHub token（默认取环境变量 FNDEPOT_TOKEN / GH_TOKEN / GITHUB_TOKEN）")
 	fs.BoolVar(&o.dryRun, "dry-run", false, "只打印将要推送的内容，不真的写")
 	fs.Var(&o.fpk, "fpk", "安装包，格式 架构=路径（x86 / arm / all），可重复")
@@ -243,13 +246,17 @@ func fndepotBuild(args []string) error {
 	}
 	// 底稿：--merge 指定的文件，没有就用 --out 已有的那份。
 	// 重新生成一次索引不能把老版本弄丢 —— 源仓库里通常还有别的应用。
-	base := o.merge
-	if base == "" {
-		base = o.out
-	}
-	src, err := loadSource(base)
-	if err != nil {
-		return err
+	// --fresh 则不要底稿：本地残留的旧文件会把重新生成堵住。
+	var src *fndepot.Source
+	if !o.fresh {
+		base := o.merge
+		if base == "" {
+			base = o.out
+		}
+		src, err = loadSource(base)
+		if err != nil {
+			return err
+		}
 	}
 	if src == nil {
 		src = built
@@ -334,21 +341,76 @@ func fndepotPublish(args []string) error {
 		}
 		return nil
 	}
-	if err := ghPutContent(o.token, o.repo, o.branch, "fnpack.json", data, "更新 FnDepot 应用源索引"); err != nil {
-		return err
-	}
-	fmt.Printf("==> 已更新 %s/%s 的 fnpack.json（应用 %s）\n", o.repo, o.branch, o.appKey)
-
-	// 图标跟着一起传：icon_url 指的就是源仓库里的这个文件。
+	// 一次发布一个提交：索引与图标进同一个 commit。
+	// 分两次写就是两个提交，源仓库的提交历史会平白多一倍。
+	// 内容没变的文件（图标每次都一样）直接跳过，连提交都不产生。
+	files := map[string][]byte{"fnpack.json": data}
 	for _, a := range buildAssets(o) {
 		b, err := os.ReadFile(a.local)
 		if err != nil {
 			return err
 		}
-		if err := ghPutContent(o.token, o.repo, o.branch, a.remote, b, "更新 "+o.appKey+" 图标"); err != nil {
-			return err
+		files[a.remote] = b
+	}
+	changed, err := ghCommitFiles(o.token, o.repo, o.branch, "更新 FnDepot 应用源索引", files)
+	if err != nil {
+		return err
+	}
+	if changed == 0 {
+		fmt.Printf("==> %s/%s 的内容没有变化，不产生新提交\n", o.repo, o.branch)
+		return nil
+	}
+	fmt.Printf("==> 已提交 %s/%s（%d 个文件）\n", o.repo, o.branch, changed)
+
+	// 写完回读：推成功不等于写对了 —— 远端拿到的内容要真的对上。
+	if err := verifyRemote(o.token, o.repo, o.branch, o.appKey, src); err != nil {
+		return err
+	}
+	fmt.Printf("==> 已回读校验 %s/%s 的 fnpack.json，内容一致\n", o.repo, o.branch)
+	return nil
+}
+
+// verifyRemote 回读远端的索引，确认与要推的内容一致。
+//
+// 推成功不等于写对了：分支保护、并发推送、内容编码都可能让远端
+// 拿到别的东西。回读一次才算数。
+func verifyRemote(token, repo, branch, appKey string, want *fndepot.Source) error {
+	cur, err := ghGetContent(token, repo, branch, "fnpack.json")
+	if err != nil {
+		return err
+	}
+	if cur == nil {
+		return fmt.Errorf("远端没有 fnpack.json")
+	}
+	got, err := fndepot.Parse([]byte(cur.Content))
+	if err != nil {
+		return fmt.Errorf("远端 fnpack.json 解析失败: %w", err)
+	}
+	wantApp, _, err := want.App(appKey)
+	if err != nil {
+		return err
+	}
+	gotApp, _, err := got.App(appKey)
+	if err != nil {
+		return err
+	}
+	if gotApp.ReadmeURL != wantApp.ReadmeURL {
+		return fmt.Errorf("远端 readme_url 不一致：本地 %q，远端 %q", wantApp.ReadmeURL, gotApp.ReadmeURL)
+	}
+	for v, w := range wantApp.Releases {
+		g, ok := gotApp.Releases[v]
+		if !ok {
+			return fmt.Errorf("远端少了版本 %s", v)
 		}
-		fmt.Printf("==> 已上传 %s\n", a.remote)
+		for arch, wp := range w.Packages {
+			gp, ok := g.Packages[arch]
+			if !ok {
+				return fmt.Errorf("远端版本 %s 少了 %s 包", v, arch)
+			}
+			if gp.DownloadURL != wp.DownloadURL || gp.SHA256 != wp.SHA256 || gp.Size != wp.Size {
+				return fmt.Errorf("远端版本 %s 的 %s 包与本地不一致", v, arch)
+			}
+		}
 	}
 	return nil
 }
@@ -544,6 +606,15 @@ func (o *fndepotOpts) buildRelease() (fndepot.Release, error) {
 			if base, err = o.releaseBase(); err != nil {
 				return fndepot.Release{}, err
 			}
+		}
+		// 包里的 manifest 与索引必须对得上：
+		// 键不符客户端会跳过这个应用，版本不符装上去就是另一个版本。
+		mf, err := fndepot.ReadFpkManifest(p)
+		if err != nil {
+			return fndepot.Release{}, fmt.Errorf("读 %s 的 manifest 失败: %w", p, err)
+		}
+		if err := fndepot.CheckPackage(o.appKey, o.version, arch, mf); err != nil {
+			return fndepot.Release{}, err
 		}
 		sha, size, err := fndepot.FileDigest(p)
 		if err != nil {
@@ -753,47 +824,6 @@ func ghGetContent(token, repo, branch, p string) (*ghContent, error) {
 	}
 	out.Content = string(raw)
 	return &out, nil
-}
-
-// ghPutContent 写源仓库里的一个文件。
-//
-// 已有文件要带上 sha 才是更新，不带就是新建 ——
-// 少了这一步，GitHub 会返回 422。
-func ghPutContent(token, repo, branch, p string, data []byte, message string) error {
-	owner, name, err := splitRepo(repo)
-	if err != nil {
-		return err
-	}
-	body := map[string]any{
-		"message": message,
-		"content": base64.StdEncoding.EncodeToString(data),
-		"branch":  branch,
-	}
-	if cur, err := ghGetContent(token, repo, branch, p); err != nil {
-		return err
-	} else if cur != nil {
-		body["sha"] = cur.SHA
-	}
-	buf, err := json.Marshal(body)
-	if err != nil {
-		return err
-	}
-	url := fmt.Sprintf("%s/repos/%s/%s/contents/%s", githubAPI, owner, name, p)
-	req, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(buf))
-	if err != nil {
-		return err
-	}
-	setGitHubHeaders(req, token)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		out, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("写入 %s/%s 的 %s 失败: HTTP %d %s", repo, branch, p, resp.StatusCode, strings.TrimSpace(string(out)))
-	}
-	return nil
 }
 
 // setGitHubHeaders 加上 GitHub API 要求的请求头。

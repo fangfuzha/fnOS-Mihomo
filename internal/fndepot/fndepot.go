@@ -205,6 +205,12 @@ func MergeApp(old App, fresh App) (App, error) {
 		if err := checkImmutable(v, oldRel, rel); err != nil {
 			return old, err
 		}
+		if samePackages(oldRel, rel) {
+			// 包没变，发布时间就不该变。
+			// 否则每次重发都改一个时间戳，源仓库的内容每次都不同，
+			// 提交历史会平白多一倍。
+			rel.UpdatedAt = oldRel.UpdatedAt
+		}
 		merged.Releases[v] = inheritDigest(oldRel, rel)
 	}
 	return merged, nil
@@ -222,6 +228,23 @@ func checkImmutable(version string, old Release, fresh Release) error {
 		}
 	}
 	return nil
+}
+
+// samePackages 判断两个版本的安装包是否完全一样。
+func samePackages(a, b Release) bool {
+	if len(a.Packages) != len(b.Packages) {
+		return false
+	}
+	for arch, ap := range a.Packages {
+		bp, ok := b.Packages[arch]
+		if !ok {
+			return false
+		}
+		if ap.DownloadURL != bp.DownloadURL || ap.SHA256 != bp.SHA256 || ap.Size != bp.Size {
+			return false
+		}
+	}
+	return true
 }
 
 // inheritDigest 新条目没带摘要时沿用旧的。
@@ -291,6 +314,18 @@ func Validate(key string, app App) []error {
 	if len(app.Releases) == 0 {
 		add("releases 不能为空")
 	}
+	if len(app.Releases) > 100 {
+		add("releases 超过 100 个版本，客户端最多读 100 个")
+	}
+	if len(app.PreviewURLs) > 8 {
+		add("preview_urls 超过 8 张，客户端最多读 8 张")
+	}
+	if isForbiddenIdentity(app.Maintainer) {
+		add("maintainer %q 属于冒名，换一个", app.Maintainer)
+	}
+	if isForbiddenIdentity(app.Distributor) {
+		add("distributor %q 属于冒名，换一个", app.Distributor)
+	}
 	for _, v := range sortedVersions(app.Releases) {
 		rel := app.Releases[v]
 		if len(rel.Packages) == 0 {
@@ -320,9 +355,30 @@ func Validate(key string, app App) []error {
 	return errs
 }
 
+// 官方会直接拦截的冒名身份。
+//
+// 源作者与应用开发者都算：叫「fndepot」会被判成冒充官方，
+// 源直接进黑名单。
+var forbiddenIdentities = []string{"fndepot"}
+
+// isForbiddenIdentity 判断一个名称是否属于冒名。
+func isForbiddenIdentity(name string) bool {
+	norm := strings.ToLower(strings.TrimSpace(name))
+	norm = strings.ReplaceAll(norm, " ", "")
+	for _, f := range forbiddenIdentities {
+		if norm == f {
+			return true
+		}
+	}
+	return false
+}
+
 // ValidateSource 检查整个源。
 func ValidateSource(s *Source) []error {
 	var errs []error
+	if isForbiddenIdentity(s.SourceInfo.Author) {
+		errs = append(errs, fmt.Errorf("source_info: 作者名 %q 属于冒名，换一个", s.SourceInfo.Author))
+	}
 	for key := range s.Apps {
 		app, _, err := s.App(key)
 		if err != nil {
@@ -350,6 +406,77 @@ func FileDigest(path string) (string, int64, error) {
 		return "", 0, err
 	}
 	return hex.EncodeToString(h.Sum(nil)), n, nil
+}
+
+// LatestVersion 取版本号最高的那个。
+//
+// 客户端是这么挑的：源里挑错版本，用户装到的就不是最新的那个。
+func LatestVersion(releases map[string]Release) string {
+	best := ""
+	for v := range releases {
+		if best == "" || CompareVersions(v, best) > 0 {
+			best = v
+		}
+	}
+	return best
+}
+
+// CompareVersions 比较两个版本号，返回 -1 / 0 / 1。
+//
+// 语义与客户端一致：数字段按数比，预发布版低于同号的正式版。
+func CompareVersions(a, b string) int {
+	an, ap := splitVersion(a)
+	bn, bp := splitVersion(b)
+	for i := 0; i < len(an) || i < len(bn); i++ {
+		x, y := 0, 0
+		if i < len(an) {
+			x = an[i]
+		}
+		if i < len(bn) {
+			y = bn[i]
+		}
+		if x != y {
+			if x < y {
+				return -1
+			}
+			return 1
+		}
+	}
+	switch {
+	case ap == bp:
+		return 0
+	case ap == "":
+		return 1
+	case bp == "":
+		return -1
+	case ap < bp:
+		return -1
+	default:
+		return 1
+	}
+}
+
+// splitVersion 拆版本号：数字段与预发布标记。
+func splitVersion(v string) ([]int, string) {
+	v = strings.TrimPrefix(strings.TrimSpace(v), "v")
+	pre := ""
+	if i := strings.IndexAny(v, "-+"); i >= 0 {
+		pre = v[i+1:]
+		v = v[:i]
+	}
+	var nums []int
+	for _, part := range strings.Split(v, ".") {
+		n := 0
+		for _, c := range part {
+			if c < '0' || c > '9' {
+				n = 0
+				break
+			}
+			n = n*10 + int(c-'0')
+		}
+		nums = append(nums, n)
+	}
+	return nums, pre
 }
 
 // sortedVersions 按可比较的版本号排序输出。

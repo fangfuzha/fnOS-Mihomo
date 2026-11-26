@@ -108,13 +108,20 @@ jobs:
         run: |
           set -e
           VERSION="$(sed -n 's/^version[[:space:]]*=[[:space:]]*//p' fnos/manifest | head -1)"
-          go run ./scripts fndepot build \
+          go run ./scripts fndepot build --fresh \
             --out build/fnpack.json \
             --icon fnos/ICON.PNG \
             --release-base "https://github.com/${{ github.repository }}/releases/download/v${VERSION}" \
             --fpk "x86=build/Mihomo-${VERSION}-x86.fpk" \
             --fpk "arm=build/Mihomo-${VERSION}-arm64.fpk"
           go run ./scripts fndepot check --file build/fnpack.json
+          # 三层核对里的前两层：索引 ↔ 包内 manifest ↔ 摘要与大小。
+          # Release 资产那层要等发版时才有，这里查不了。
+          go run ./scripts fndepot verify \
+            --file build/fnpack.json \
+            --icon fnos/ICON.PNG \
+            --fpk "x86=build/Mihomo-${VERSION}-x86.fpk" \
+            --fpk "arm=build/Mihomo-${VERSION}-arm64.fpk"
 
       - uses: actions/upload-artifact@v4
         with:

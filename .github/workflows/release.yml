@@ -18,7 +18,7 @@ jobs:
       # 只有这个 job 需要写权限（发 Release）。
       contents: write
     env:
-      # 没配这个密钥就跳过「更新 FnDepot 应用源」那一步，
+      # 往应用源仓库写索引用这个；没配就跳过「更新 FnDepot 应用源」那步，
       # Release 照发。
       FNDEPOT_TOKEN: ${{ secrets.FNDEPOT_TOKEN }}
 
@@ -90,6 +90,19 @@ jobs:
           fi
           echo "版本：$MANIFEST_VERSION"
 
+      - name: 生成 FnDepot 索引
+        # 先在本地生成索引（还不推），后面用它核对。
+        shell: bash
+        run: |
+          set -e
+          VERSION="$(sed -n 's/^version[[:space:]]*=[[:space:]]*//p' fnos/manifest | head -1)"
+          go run ./scripts fndepot build --fresh \
+            --out build/fnpack.json \
+            --icon fnos/ICON.PNG \
+            --release-base "https://github.com/${{ github.repository }}/releases/download/v${VERSION}" \
+            --fpk "x86=build/Mihomo-${VERSION}-x86.fpk" \
+            --fpk "arm=build/Mihomo-${VERSION}-arm64.fpk"
+
       - name: 发布 Release
         uses: softprops/action-gh-release@v2
         with:
@@ -97,6 +110,22 @@ jobs:
             build/Mihomo-*-x86.fpk
             build/Mihomo-*-arm64.fpk
           generate_release_notes: true
+
+      - name: 核对索引与 Release
+        # 三层核对：索引 ↔ 包内 manifest ↔ Release 资产的摘要与大小。
+        # 用内置的 GITHUB_TOKEN 查 Release（它对当前仓库有权限）；
+        # FNDEPOT_TOKEN 是给另一个仓库用的，查不了这里的 Release。
+        shell: bash
+        run: |
+          set -e
+          VERSION="$(sed -n 's/^version[[:space:]]*=[[:space:]]*//p' fnos/manifest | head -1)"
+          go run ./scripts fndepot verify \
+            --file build/fnpack.json \
+            --icon fnos/ICON.PNG \
+            --fpk "x86=build/Mihomo-${VERSION}-x86.fpk" \
+            --fpk "arm=build/Mihomo-${VERSION}-arm64.fpk" \
+            --check-release \
+            --token "${{ secrets.GITHUB_TOKEN }}"
 
       - name: 更新 FnDepot 应用源
         # 客户端只认源仓库里的 fnpack.json：版本号不写进去，
@@ -109,5 +138,6 @@ jobs:
           VERSION="$(sed -n 's/^version[[:space:]]*=[[:space:]]*//p' fnos/manifest | head -1)"
           go run ./scripts fndepot publish \
             --icon fnos/ICON.PNG \
+            --release-base "https://github.com/${{ github.repository }}/releases/download/v${VERSION}" \
             --fpk "x86=build/Mihomo-${VERSION}-x86.fpk" \
             --fpk "arm=build/Mihomo-${VERSION}-arm64.fpk"
