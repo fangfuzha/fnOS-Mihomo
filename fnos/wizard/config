@@ -1,0 +1,31 @@
+[
+ {
+  "stepTitle": "代理设置",
+  "items": [
+   {
+    "type": "tips",
+    "helpText": "留空表示保持原值不变。订阅链接建议直接在应用面板里管理，改动更方便。"
+   },
+   {
+    "type": "text",
+    "field": "wizard_sub_url",
+    "label": "订阅链接（留空不修改）"
+   },
+   {
+    "type": "text",
+    "field": "wizard_mixed_port",
+    "label": "代理端口（留空不修改）"
+   },
+   {
+    "type": "text",
+    "field": "wizard_controller_port",
+    "label": "控制端口（留空不修改）"
+   },
+   {
+    "type": "text",
+    "field": "wizard_secret",
+    "label": "控制密钥（留空不修改）"
+   }
+  ]
+ }
+]

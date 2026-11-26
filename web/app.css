@@ -1,0 +1,291 @@
+*{box-sizing:border-box;margin:0;padding:0}
+/* hidden 属性要自己生效：.btn 之类的设了 display，
+   会盖掉浏览器默认的 [hidden]{display:none}。 */
+[hidden]{display:none!important}
+:root{
+  --bg:#0f1419; --panel:#161b22; --panel-2:#131820; --line:#30363d; --line-soft:#21262d;
+  --text:#e6edf3; --muted:#8b949e; --accent:#1f6feb; --ok:#3fb950; --warn:#d29922; --bad:#f85149;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;overflow:hidden}
+.sprite{position:absolute;width:0;height:0;overflow:hidden}
+.ic{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.ic.sm{width:15px;height:15px}
+.app{height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* 顶栏 */
+.titlebar{height:46px;flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 12px 0 14px;background:#12171d;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:9px;min-width:0}
+.logo{width:26px;height:26px;flex:none;border-radius:8px;background:linear-gradient(140deg,#2b7cf0,#0d419d);display:grid;place-items:center;color:#fff;box-shadow:0 1px 6px rgba(31,111,235,.35)}
+.logo .ic{width:15px;height:15px;stroke-width:2}
+.brand-name{font-weight:600;font-size:14px;white-space:nowrap}
+.brand-sub{color:var(--muted);font-size:12px;border-left:1px solid var(--line);padding-left:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.title-right{display:flex;align-items:center;gap:7px;flex:none}
+.pill{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:3px 11px;font-size:12px;color:var(--muted);white-space:nowrap}
+.pill b{color:var(--text);font-weight:600}
+.pill.ok b{color:var(--ok)} .pill.bad b{color:var(--bad)} .pill.warn b{color:var(--warn)}
+.icon-btn{width:28px;height:28px;border-radius:8px;background:transparent;border:1px solid transparent;color:var(--muted);cursor:pointer;display:grid;place-items:center;font-family:inherit}
+.icon-btn:hover{background:var(--panel);border-color:var(--line);color:var(--text)}
+
+/* 主体：侧边栏 + 主区 */
+.shell{flex:1;display:flex;min-height:0}
+.sidebar{width:210px;flex:none;background:#12171d;border-right:1px solid var(--line);display:flex;flex-direction:column;padding:10px 8px}
+.nav{flex:1;display:flex;flex-direction:column;gap:2px;min-height:0;overflow:auto}
+.nav-item{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:8px;border:none;background:transparent;color:var(--muted);cursor:pointer;font-size:13px;font-family:inherit;text-align:left}
+.nav-item:hover{background:#1b222c;color:var(--text)}
+.nav-item.on{background:var(--panel);color:var(--text);box-shadow:inset 0 0 0 1px var(--line)}
+.nav-item.on .ic{color:var(--accent)}
+.nav-foot{flex:none;padding-top:10px;margin-top:8px;border-top:1px solid var(--line-soft);display:flex;flex-direction:column;gap:8px}
+.mini{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px 11px}
+.mini-row{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12px;color:var(--muted);padding:2px 0}
+.mini-row b{color:var(--text);font-weight:500;white-space:nowrap}
+.mini-row b.ok{color:var(--ok)} .mini-row b.bad{color:var(--bad)}
+.nav-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+
+/* 主区 */
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.main-inner{flex:1;position:relative;min-height:0}
+.scroll{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;padding:16px 24px 26px 18px}
+.statusbar{flex:none;height:32px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 16px;border-top:1px solid var(--line);background:#12171d;color:var(--muted);font-size:12px}
+.statusbar .r{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* 面板：占满可视区，内容多的地方自己内部滚，页面本身尽量不滚 */
+.panel{display:none}
+.panel.on{display:flex;flex-direction:column;min-height:100%}
+/* 内部滚动区：列表、日志这类会长高的内容放这里，页面不用跟着变长 */
+.sbox{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
+.sbox>.inner{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden}
+
+/* 面板头与工具栏 */
+.p-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.p-head h2{font-size:16px;font-weight:600}
+.p-head p{color:var(--muted);font-size:12px;margin-top:2px}
+.p-head .toolbar{margin-bottom:0}
+.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.toolbar+.toolbar{margin-top:-4px}
+.search{display:flex;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--muted);min-width:190px}
+.dash-picker{margin:0;width:220px;max-width:100%}
+/* 日志的两个下拉框标题短，用窄一点的格子 */
+.log-picker{margin:0;width:136px;max-width:100%}
+.search:focus-within{border-color:var(--accent)}
+.search input{background:transparent;border:none;outline:none;color:var(--text);font-size:13px;width:100%;font-family:inherit;min-width:0}
+.seg{display:flex;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px;flex:none}
+.seg button{width:30px;height:26px;border-radius:6px;background:transparent;border:none;color:var(--muted);cursor:pointer;display:grid;place-items:center}
+.seg button:hover{color:var(--text)}
+.seg button.on{background:#2b3442;color:var(--accent)}
+
+/* 按钮 */
+.btn{display:inline-flex;align-items:center;gap:6px;background:#21262d;border:1px solid var(--line);color:var(--text);padding:7px 13px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;white-space:nowrap}
+.btn:hover{background:#2a313b;border-color:#3d444d}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:#2b7cf0;border-color:#2b7cf0}
+.btn.danger{background:transparent;border-color:#5c2f2f;color:#ff7b72}
+.btn.danger:hover{background:#2b1b1b}
+.btn.sm{padding:5px 10px;font-size:12px;border-radius:7px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* 卡片与列表 */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.card+.card{margin-top:12px}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(140px,100%),1fr));gap:10px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.stat .k{color:var(--muted);font-size:12px}
+.stat .v{font-size:19px;font-weight:600;margin-top:3px;overflow-wrap:anywhere}
+.ok{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--warn)}
+.list{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.list table{width:100%;border-collapse:collapse;table-layout:fixed}
+/* 列宽写死成固定布局：auto 布局下内容一长，
+   浏览器会把某几列挤成一条缝（「状态」列只剩几十像素，错误信息被逐字断行）。 */
+.list th:nth-child(2){width:64px}
+.list th:nth-child(3){width:88px}
+.list th:nth-child(4){width:150px}
+.list th:nth-child(5){width:172px}
+.list th.ops-col{text-align:right}
+.list .err-row td{padding:0 14px 10px;border:none}
+.list .err-row:hover{background:transparent}
+.list th{color:var(--muted);font-weight:500;font-size:12px;text-align:left;padding:9px 14px;background:var(--panel-2);border-bottom:1px solid var(--line);white-space:nowrap}
+.list td{padding:10px 14px;border-bottom:1px solid var(--line-soft);font-size:13px;vertical-align:middle}
+.list tbody tr:last-child td{border-bottom:none}
+.list tbody tr:hover{background:#1b222c}
+.list .ops{display:flex;gap:6px;justify-content:flex-end;white-space:nowrap}
+.row-main{display:flex;align-items:center;gap:9px;min-width:0}
+.row-ic{width:28px;height:28px;flex:none;border-radius:8px;display:grid;place-items:center;background:#1d2a3d;color:#6fa8ff}
+.row-ic .ic{width:16px;height:16px}
+.row-txt{min-width:0;display:flex;flex-direction:column;gap:1px}
+/* 长名字与长链接一律截断，完整内容放在 title 里悬停可见。
+   不断的话一列长 URL 就能把整行撑得很高，表格会变得没法看。 */
+.row-txt .nm{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row-txt .sub{color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 错误信息最多两行，超出省略 —— 长错误堆成一堵墙比看不到还糟 */
+.err-line{color:var(--bad);font-size:11px;line-height:1.5;margin-top:3px;overflow-wrap:anywhere;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tag{display:inline-block;padding:1px 8px;border-radius:20px;font-size:11px;border:1px solid}
+.tag.on{color:var(--ok);border-color:var(--ok)} .tag.off{color:var(--muted);border-color:var(--line)}
+.tag.err{color:var(--bad);border-color:var(--bad)}
+.empty{padding:26px 14px;text-align:center;color:var(--muted);font-size:13px}
+.grid{display:none;grid-template-columns:repeat(auto-fill,minmax(min(230px,100%),1fr));gap:10px}
+.view-grid .list{display:none}
+.view-grid .grid{display:grid;align-content:start}
+.gcard{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px 14px}
+/* 卡片视图里的长链接留两行，再长就省略 */
+.gcard .long{color:var(--muted);font-size:11px;margin-top:8px;overflow-wrap:anywhere;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.gcard .ops{margin-top:11px;display:flex;gap:6px}
+
+/* 表单 */
+.field{margin-bottom:12px}
+.field>span{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}
+input[type=text],input[type=password],input[type=number],select{width:100%;background:#0d1117;border:1px solid var(--line);color:var(--text);padding:8px 10px;border-radius:8px;font-size:13px;font-family:inherit;outline:none}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(31,111,235,.18)}
+select{background-image:none;cursor:pointer}
+.row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.row>.field{flex:1 1 170px;min-width:0;margin-bottom:0}
+.hint{color:var(--muted);font-size:12px;margin-top:8px;line-height:1.7;overflow-wrap:anywhere}
+.switch{display:inline-flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+.switch input{display:none}
+.switch .track{width:38px;height:21px;border-radius:20px;background:#30363d;position:relative;transition:.18s;flex:none}
+.switch .track::after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#8b949e;transition:.18s}
+.switch input:checked+.track{background:var(--accent)}
+.switch input:checked+.track::after{transform:translateX(17px);background:#fff}
+.switch .lbl{font-size:13px}
+
+/* 基础设置：宽屏分两栏，免得一条一条往下堆把页面撑长 */
+.set-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;align-items:start}
+.set-col{min-width:0}
+.set-title{font-size:13px;font-weight:600;margin-bottom:10px}
+
+/* 控制面板页（不再内嵌预览，只做入口） */
+.dash-info{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;align-items:baseline;font-size:13px}
+.dash-info .k{color:var(--muted);font-size:12px;white-space:nowrap}
+.dash-info .v{min-width:0;overflow-wrap:anywhere}
+.dash-info .v a{color:#6fa8ff;text-decoration:none}
+.dash-info .v a:hover{text-decoration:underline}
+
+/* 日志：表格视图，按级别着色 */
+.log-table{width:100%;border-collapse:collapse;table-layout:fixed}
+.log-table th{position:sticky;top:0;z-index:2;background:var(--panel-2);color:var(--muted);font-weight:500;
+  font-size:12px;text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.log-table td{padding:4px 12px;border-bottom:1px solid var(--line-soft);font-size:12px;vertical-align:top;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.log-table tbody tr:hover td{background:#1b222c}
+.log-table th.lv-col{width:66px}
+.log-table th.ts-col{width:104px}
+/* 日志内容可能有整屏那么长的一行：单行省略，完整内容悬停可见 */
+/* 单行省略，完整内容悬停可见。
+   span 默认是行内盒，overflow / text-overflow 对行内盒不生效，
+   必须转成块级才省略得掉。 */
+.log-table .msg{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#adbac7;padding-right:14px}
+.log-table .ts{color:var(--muted);white-space:nowrap}
+.lv{display:inline-block;padding:0 7px;border-radius:20px;font-size:11px;line-height:17px;border:1px solid;white-space:nowrap}
+.lv-error{color:#ff7b72;border-color:#7d3b38}
+.lv-warn{color:#e3b341;border-color:#6b5320}
+.lv-info{color:#6fa8ff;border-color:#2f4a75}
+.lv-debug{color:#8b949e;border-color:#30363d}
+.lv-other{color:#8b949e;border-color:#30363d}
+tr.lv-error-row .msg{color:#ffa198}
+tr.lv-warn-row .msg{color:#e3b341}
+tr.lv-debug-row .msg{color:#768390}
+
+/* 自绘滚动条：原生滚动条在暗色页面上是一条白杆，
+   这里自己画 —— 轨道透明，把手细圆角，悬停提亮。 */
+.scroll,.sbox>.inner{scrollbar-width:none;-ms-overflow-style:none}
+.scroll::-webkit-scrollbar,.sbox>.inner::-webkit-scrollbar{width:0;height:0;display:none}
+.cs-track{position:absolute;top:8px;bottom:8px;right:3px;width:11px;border-radius:6px;z-index:20;opacity:0;transition:opacity .2s;pointer-events:none}
+.cs-track.show{opacity:.5;pointer-events:auto}
+.cs-track:hover,.cs-track.drag{opacity:1}
+.cs-thumb{position:absolute;left:2px;width:7px;border-radius:6px;background:#5b6675;transition:background .15s}
+.cs-track:hover .cs-thumb,.cs-track.drag .cs-thumb{background:#8b95a3}
+
+/* 提示条 */
+#toast{position:fixed;right:20px;bottom:20px;background:#21262d;border:1px solid var(--line);border-radius:9px;padding:11px 17px;font-size:13px;opacity:0;transition:.2s;pointer-events:none;max-width:80vw;z-index:60;overflow-wrap:anywhere}
+#toast.show{opacity:1}
+#toast.err{border-color:var(--bad);color:#ffb4ae}
+#toast.ok{border-color:var(--ok);color:#7ee787}
+
+/* ---- 响应式：适配不同窗口尺寸 ----
+   这个面板在 fnOS 桌面里是跑在 iframe 里的，窗口能随意拖宽拖窄，
+   所以按可用宽度分四档：
+   - 宽屏（>1000px）：完整侧栏，文字标签都在；
+   - 中等宽度（620~1000px）：侧栏收成图标栏，只留图标（悬停有标题提示）；
+   - 窄屏（<700px）：导航挪到顶部横排，表格改成卡片式堆叠；
+   - 更窄（<480px）：表单字段整行一个。 */
+@media (max-width: 1000px) {
+  .brand-sub{display:none}
+  .sidebar{width:54px;padding:10px 6px}
+  .nav-item{justify-content:center;padding:9px 0}
+  .nav-item span{display:none}
+  .nav-foot{display:none}
+  .scroll{padding:14px 18px 24px 12px}
+  .search{min-width:0;flex:1 1 190px}
+}
+@media (max-width: 760px) {
+  /* 开关改成各占一行：两个开关挤在一行时，前一个的说明文字
+     会被后一个的滑块顶掉，读不全。 */
+  .switch{display:flex;width:100%}
+  .switch .lbl{flex:1;line-height:1.45}
+  /* 下拉框单独占一行：选项文字较长（「均衡：国内直连、国外走代理」），
+     半宽的格子里会被截掉半句。 */
+  .row-select>.field{flex:1 1 100%}
+}
+@media (max-width: 700px) {
+  .shell{flex-direction:column}
+  .sidebar{width:auto;flex:none;flex-direction:row;align-items:center;padding:5px 8px;border-right:none;border-bottom:1px solid var(--line)}
+  /* 导航项按比例分掉整条宽度：不产生横向溢出，也就不用原生滚动条 */
+  .nav{flex-direction:row;gap:2px;flex:1;overflow:visible}
+  .nav-item{flex:1 1 0;min-width:28px;padding:8px 0}
+  .scroll{padding:12px 18px 20px 10px}
+  .p-head{align-items:flex-start}
+  .p-head .toolbar{width:100%}
+  .toolbar{gap:6px}
+  /* 错误行也跟其它内容一样缩进，视觉上才是一套 */
+  .list .err-row td{padding:3px 0 3px 68px}
+  .titlebar{padding:0 8px 0 10px;gap:8px}
+  .pill{padding:3px 8px;font-size:11px}
+  /* 表格改成卡片式堆叠：每格左侧一个标签，内容在右边，
+     这样窄窗口里也不会把「操作」按钮挤到看不见的地方。 */
+  .list table,.list tbody,.list tr,.list td{display:block}
+  .list thead{display:none}
+  .list tr{padding:11px 14px;border-bottom:1px solid var(--line-soft)}
+  .list tbody tr:hover{background:transparent}
+  .list td{padding:3px 0 3px 68px;border:none;position:relative;min-height:20px}
+  .list td::before{content:attr(data-label);position:absolute;left:0;top:3px;width:58px;color:var(--muted);font-size:12px}
+  .list td:first-child{padding-left:0;margin-bottom:2px}
+  .list td:first-child::before{content:none}
+  .list .ops{justify-content:flex-end}
+  /* 日志表格在窄屏里也堆叠：级别与时间并排，内容独占一行 */
+  .log-table thead{display:none}
+  .log-table tbody,.log-table tr{display:block;width:auto}
+  .log-table tr{padding:6px 12px;border-bottom:1px solid var(--line-soft)}
+  /* 级别与时间并排一行，内容独占一行 */
+  .log-table td{display:inline-block;width:auto;padding:1px 0;border:none}
+  .log-table td.msg-cell{display:block}
+  .log-table .lv-col,.log-table .ts-col{width:auto}
+  .log-table .ts{display:inline;margin-left:6px}
+  .log-table .msg{white-space:normal;word-break:break-all;overflow-wrap:anywhere;padding-right:0}
+}
+@media (max-width: 480px) {
+  /* 表单字段改成整行一个：下拉框里的长选项（「均衡：国内直连、国外走代理」）
+     在半宽的格子里会被截掉半句。 */
+  .row>.field{flex:1 1 100%}
+  /* 提交按钮也独占一行，不然它会跟输入框挤成两半。 */
+  .row>.btn{flex:1 1 100%;justify-content:center}
+}
+@media (max-width: 420px) {
+  /* 太窄时顶栏只留最关键的内核状态 */
+  #tb-port{display:none}
+  .brand-name{font-size:13px}
+}
+/* ---- 登录页 ---- */
+/* 没设访问密码时这块不显示；设了之后整个界面换成登录框。 */
+.login-screen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:var(--bg);z-index:50}
+body.locked .login-screen{display:flex}
+body.locked .app{display:none}
+.login-card{width:min(380px,92vw);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px 24px;display:flex;flex-direction:column}
+.login-logo{width:38px;height:38px;border-radius:10px;background:linear-gradient(140deg,#2b7cf0,#0d419d);display:grid;place-items:center;color:#fff;margin-bottom:12px}
+.login-logo .ic{width:19px;height:19px;stroke-width:2}
+.login-card h1{font-size:16px;font-weight:600}
+.login-sub{color:var(--muted);font-size:12px;margin:2px 0 14px}
+.login-card .field{margin-bottom:10px}
+.login-err{color:var(--bad);font-size:12px;min-height:18px;margin-bottom:6px}
+.login-btn{width:100%;justify-content:center}

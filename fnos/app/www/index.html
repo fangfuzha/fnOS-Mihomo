@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mihomo 代理</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<svg class="sprite" aria-hidden="true">
+  <symbol id="ic-ov" viewBox="0 0 24 24"><polyline points="3 12 7 12 10 4 14 20 17 12 21 12"/></symbol>
+  <symbol id="ic-sub" viewBox="0 0 24 24"><circle cx="5.5" cy="18.5" r="2"/><path d="M4.5 11a8.5 8.5 0 0 1 8.5 8.5"/><path d="M4.5 5a14.5 14.5 0 0 1 14.5 14.5"/></symbol>
+  <symbol id="ic-dash" viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6"/></symbol>
+  <symbol id="ic-gw" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.6 15.4 6.4"/><path d="M8.6 13.4 15.4 17.6"/></symbol>
+  <symbol id="ic-set" viewBox="0 0 24 24"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><path d="M1 14h6"/><path d="M9 8h6"/><path d="M17 16h6"/></symbol>
+  <symbol id="ic-log" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><polyline points="14 3 14 8 19 8"/><path d="M8.5 13h7"/><path d="M8.5 17h4.5"/></symbol>
+  <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20.5 20.5 16.4 16.4"/></symbol>
+  <symbol id="ic-list" viewBox="0 0 24 24"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></symbol>
+  <symbol id="ic-tiles" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.6"/><rect x="13" y="3" width="8" height="8" rx="1.6"/><rect x="3" y="13" width="8" height="8" rx="1.6"/><rect x="13" y="13" width="8" height="8" rx="1.6"/></symbol>
+  <symbol id="ic-refresh" viewBox="0 0 24 24"><path d="M20.5 12a8.5 8.5 0 1 1-2.8-6.3"/><polyline points="21 3 21 8.5 15.5 8.5"/></symbol>
+  <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></symbol>
+  <symbol id="ic-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></symbol>
+  <symbol id="ic-power" viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M18.4 6.6a9 9 0 1 1-12.8 0"/></symbol>
+  <symbol id="ic-external" viewBox="0 0 24 24"><path d="M14 3h7v7"/><path d="M10 14 21 3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></symbol>
+  <symbol id="ic-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h3.6l2 2.2H19a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="ic-doc" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><polyline points="14 3 14 8 19 8"/></symbol>
+</svg>
+
+<!-- 登录页：只有在基础设置里启用了访问密码才会出现 -->
+<div id="login-screen" class="login-screen">
+  <div class="login-card">
+    <div class="login-logo"><svg class="ic"><use href="#ic-ov"/></svg></div>
+    <h1>Mihomo 代理</h1>
+    <div class="login-sub">请输入面板访问密码</div>
+    <div class="field"><span>用户名</span><input type="text" id="login-user" value="admin" autocomplete="username"></div>
+    <div class="field"><span>密码</span><input type="password" id="login-pass" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="login-err" id="login-msg"></div>
+    <button class="btn primary login-btn" onclick="doLogin()">登录</button>
+  </div>
+</div>
+
+<div class="app">
+  <header class="titlebar">
+    <div class="brand">
+      <span class="logo"><svg class="ic"><use href="#ic-ov"/></svg></span>
+      <span class="brand-name">Mihomo 代理</span>
+      <span class="brand-sub">飞牛 fnOS 本地代理内核 · 订阅管理 · 本机走代理</span>
+    </div>
+    <div class="title-right">
+      <span class="pill" id="tb-kernel">内核 <b>-</b></span>
+      <span class="pill" id="tb-port">端口 <b>-</b></span>
+      <span class="pill" id="tb-sub">订阅 <b>-</b></span>
+      <button class="icon-btn" onclick="coreAction('restart')" title="重启内核"><svg class="ic"><use href="#ic-refresh"/></svg></button>
+    </div>
+  </header>
+
+  <div class="shell">
+    <nav class="sidebar">
+      <div class="nav">
+        <button class="nav-item on" data-p="ov" title="运行状态"><svg class="ic"><use href="#ic-ov"/></svg><span>运行状态</span></button>
+        <button class="nav-item" data-p="sub" title="订阅管理"><svg class="ic"><use href="#ic-sub"/></svg><span>订阅管理</span></button>
+        <button class="nav-item" data-p="dash" title="控制面板"><svg class="ic"><use href="#ic-dash"/></svg><span>控制面板</span></button>
+        <button class="nav-item" data-p="gw" title="NAS 本机走代理"><svg class="ic"><use href="#ic-gw"/></svg><span>NAS 本机走代理</span></button>
+        <button class="nav-item" data-p="set" title="基础设置"><svg class="ic"><use href="#ic-set"/></svg><span>基础设置</span></button>
+        <button class="nav-item" data-p="log" title="运行日志"><svg class="ic"><use href="#ic-log"/></svg><span>运行日志</span></button>
+      </div>
+      <div class="nav-foot">
+        <div class="mini">
+          <div class="mini-row"><span>内核</span><b id="side-kernel">-</b></div>
+          <div class="mini-row"><span>代理端口</span><b id="side-port">-</b></div>
+          <div class="mini-row"><span>订阅</span><b id="side-sub">-</b></div>
+        </div>
+        <div class="nav-actions">
+          <button class="btn sm" onclick="coreAction('start')">启动</button>
+          <button class="btn sm" onclick="coreAction('stop')">停止</button>
+          <button class="btn sm" onclick="coreAction('restart')">重启</button>
+        </div>
+      </div>
+    </nav>
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="scroll" id="main-scroll">
+
+          <section class="panel on" id="p-ov">
+            <div class="p-head">
+              <div><h2>运行状态</h2><p>内核、代理端口与订阅的实时状态</p></div>
+              <div class="toolbar">
+                <button class="btn" onclick="coreAction('restart')"><svg class="ic sm"><use href="#ic-refresh"/></svg>重启内核</button>
+              </div>
+            </div>
+            <div class="stat-grid" id="cards"></div>
+            <div class="card" style="margin-top:12px">
+              <div class="p-head" style="margin-bottom:8px"><div><h2 style="font-size:14px">本机出站流量</h2><p>让 NAS 自己的流量（下载中心、Docker 拉镜像、系统更新）走代理</p></div></div>
+              <label class="switch"><input type="checkbox" id="gw-enabled" onchange="gwToggle(this.checked)"><span class="track"></span><span class="lbl" id="gw-lbl">已关闭</span></label>
+              <div class="hint">开启后 NAS 本机进程发出的流量交给代理内核处理，按分流规则国内直连、国外走代理。局域网其它设备不受影响，无需改网关设置。</div>
+              <div class="toolbar" style="margin-top:12px;margin-bottom:0"><button class="btn primary" onclick="saveGateway()">应用</button></div>
+            </div>
+          </section>
+
+          <section class="panel" id="p-sub">
+            <div class="p-head">
+              <div><h2>订阅管理</h2><p>填入订阅链接，自动解析成节点列表</p></div>
+              <div class="search"><svg class="ic sm"><use href="#ic-search"/></svg><input type="text" id="sub-search" placeholder="搜索订阅" oninput="filterSubs()"></div>
+            </div>
+            <div class="card" style="margin-bottom:12px">
+              <div class="row">
+                <div class="field"><span>订阅名称</span><input type="text" id="sub-name" placeholder="例如：机场主号"></div>
+                <div class="field" style="flex:2"><span>订阅链接</span><input type="text" id="sub-url" placeholder="https://..."></div>
+                <button class="btn primary" onclick="saveSub()"><svg class="ic sm"><use href="#ic-plus"/></svg>保存并拉取</button>
+              </div>
+              <div class="hint">支持 base64 链接列表订阅（vless / vmess / trojan / ss / hysteria2 / tuic）与完整 Clash 配置。保存后立即拉取并更新节点。</div>
+            </div>
+            <div class="toolbar">
+              <button class="btn" onclick="loadSubs()"><svg class="ic sm"><use href="#ic-refresh"/></svg>刷新列表</button>
+              <div style="flex:1"></div>
+              <div class="seg">
+                <button id="v-list" class="on" onclick="setSubView('list')" title="列表视图"><svg class="ic sm"><use href="#ic-list"/></svg></button>
+                <button id="v-grid" onclick="setSubView('grid')" title="卡片视图"><svg class="ic sm"><use href="#ic-tiles"/></svg></button>
+              </div>
+            </div>
+            <div class="sbox">
+              <div class="inner" id="sub-scroll">
+                <div class="list">
+                  <table id="sub-table"><thead><tr><th>名称</th><th>节点数</th><th>状态</th><th>更新时间</th><th class="ops-col">操作</th></tr></thead><tbody></tbody></table>
+                </div>
+                <div class="grid" id="sub-grid"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel" id="p-dash">
+            <div class="p-head">
+              <div><h2>控制面板</h2><p>内置 MetaCubeXD / zashboard / Yacd，节点切换与流量统计交给面板</p></div>
+            </div>
+            <div class="toolbar">
+              <div class="dash-picker"><select id="dash-select" onchange="saveDashboard()"></select></div>
+              <button class="btn primary" onclick="openDashExternal()"><svg class="ic sm"><use href="#ic-external"/></svg>打开控制面板</button>
+              <button class="btn" id="dash-ipv6-btn" onclick="openDashIPv6()" hidden><svg class="ic sm"><use href="#ic-external"/></svg>用 IPv6 打开</button>
+            </div>
+            <div id="dash-hint" class="hint" style="margin-bottom:12px"></div>
+            <div class="card">
+              <div class="dash-info" id="dash-info"></div>
+            </div>
+          </section>
+
+          <section class="panel" id="p-gw">
+            <div class="p-head">
+              <div><h2>NAS 本机走代理</h2><p>接管 NAS 自身的出站流量</p></div>
+            </div>
+            <div class="card">
+              <label class="switch"><input type="checkbox" id="gw-enabled2" onchange="gwToggle(this.checked)"><span class="track"></span><span class="lbl" id="gw-lbl2">已关闭</span></label>
+              <div class="hint">
+                开启后，NAS 本机进程发出的流量会交给代理内核处理，按分流规则国内直连、国外走代理。<br>
+                只影响 NAS 自己的出站流量，局域网其它设备的网络访问不受影响，无需改网关设置。<br>
+                关闭时会立即撤销全部接管规则。
+              </div>
+              <div class="toolbar" style="margin-top:12px;margin-bottom:0">
+                <button class="btn primary" onclick="saveGateway()">应用</button>
+                <button class="btn" onclick="gwToggle(!document.getElementById('gw-enabled2').checked)" id="gw-toggle-btn">切换状态</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel" id="p-set">
+            <div class="p-head">
+              <div><h2>基础设置</h2><p>端口、运行模式与日志级别</p></div>
+            </div>
+            <div class="card set-grid">
+              <div class="set-col">
+                <div class="set-title">端口与运行模式</div>
+                <div class="row">
+                  <div class="field"><span>代理端口（mixed）</span><input type="number" id="set-mixed"></div>
+                  <div class="field"><span>控制端口</span><input type="number" id="set-controller"></div>
+                </div>
+                <div class="row row-select" style="margin-top:12px">
+                  <div class="field"><span>控制密钥</span><input type="text" id="set-secret" placeholder="留空则不校验"></div>
+                </div>
+                <div class="hint">首次安装会自动生成一个控制密钥。控制口（默认 9090）绑在所有网卡上，没有密钥的话同网段任何设备都能读走节点凭据、直接改内核配置。留空则不校验，不建议清空。</div>
+                <div class="row row-select" style="margin-top:12px">
+                  <div class="field"><span>运行模式</span><select id="set-mode"><option value="rule">规则（按分流策略）</option><option value="global">全局（全部走代理）</option><option value="direct">直连（不代理）</option></select></div>
+                  <div class="field"><span>分流策略</span><select id="set-rules"><option value="balanced">均衡：国内直连、国外走代理</option></select></div>
+                  <div class="field"><span>日志级别</span><select id="set-log"><option value="silent">silent</option><option value="error">error</option><option value="warning">warning</option><option value="info">info</option><option value="debug">debug</option></select></div>
+                </div>
+              </div>
+              <div class="set-col">
+                <div class="set-title">代理选项</div>
+                <label class="switch"><input type="checkbox" id="set-lan"><span class="track"></span><span class="lbl">允许局域网设备连接代理端口</span></label>
+                <label class="switch" style="margin-top:12px"><input type="checkbox" id="set-ipv6"><span class="track"></span><span class="lbl">启用 IPv6 代理</span></label>
+                <div class="toolbar" style="margin-top:14px;margin-bottom:0">
+                  <button class="btn primary" onclick="saveSettings()">保存设置</button>
+                  <button class="btn" onclick="coreAction('start')">启动内核</button>
+                  <button class="btn" onclick="coreAction('stop')">停止内核</button>
+                  <button class="btn" onclick="coreAction('restart')">重启内核</button>
+                </div>
+                <div class="hint">内核会随订阅状态自动启停：有可用节点就启动，没有节点就停止。手动点「停止内核」后不会再被自动拉起。</div>
+              </div>
+              <div class="set-col">
+                <div class="set-title">面板访问</div>
+                <div class="row">
+                  <div class="field"><span>用户名</span><input type="text" id="set-user" placeholder="admin"></div>
+                  <div class="field"><span>访问密码</span><input type="password" id="set-passwd" placeholder="留空表示不修改"></div>
+                </div>
+                <div class="hint" id="set-auth-state">未启用访问密码：同网段任何设备都能直接打开面板。</div>
+                <div class="toolbar" style="margin-top:12px;margin-bottom:0">
+                  <button class="btn" id="btn-clear-pass" onclick="clearPanelPassword()" hidden>清除密码</button>
+                  <button class="btn" id="btn-logout" onclick="doLogout()" hidden>退出登录</button>
+                </div>
+                <div class="hint">启用后，除了登录接口以外的所有接口都要先登录，订阅链接与控制密钥不会再被同网段直接读到。口令只以哈希形式存在本机，忘了只能清除重来。</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel" id="p-log">
+            <div class="p-head">
+              <div><h2>运行日志</h2><p>内核最近的输出，按级别着色</p></div>
+              <div class="toolbar">
+                <div class="log-picker"><select id="log-level" onchange="renderLogs()">
+                  <option value="">全部级别</option>
+                  <option value="error">仅错误</option>
+                  <option value="warn">仅警告</option>
+                  <option value="info">仅信息</option>
+                  <option value="debug">仅调试</option>
+                </select></div>
+                <div class="log-picker"><select id="log-lines" onchange="loadLogs()">
+                  <option value="100">最近 100 行</option>
+                  <option value="300" selected>最近 300 行</option>
+                  <option value="1000">最近 1000 行</option>
+                </select></div>
+                <button class="btn" onclick="loadLogs()"><svg class="ic sm"><use href="#ic-refresh"/></svg>刷新</button>
+              </div>
+            </div>
+            <div class="sbox">
+              <div class="inner" id="log-scroll">
+                <table class="log-table">
+                  <thead><tr><th class="lv-col">级别</th><th class="ts-col">时间</th><th>内容</th></tr></thead>
+                  <tbody id="log-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+        </div>
+      </div>
+      <div class="statusbar"><span class="l" id="sb-left">就绪</span><span class="r" id="sb-right"></span></div>
+    </main>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="/app.js"></script>
+</body>
+</html>

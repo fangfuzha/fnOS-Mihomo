@@ -1,0 +1,11 @@
+#!/bin/bash
+#
+# 更新前：备份配置，升级失败时还能手工恢复。
+
+set -u
+
+if [ -f "${TRIM_PKGETC}/config.json" ]; then
+    cp -f "${TRIM_PKGETC}/config.json" "${TRIM_PKGETC}/config.json.bak" 2>/dev/null
+fi
+
+exit 0

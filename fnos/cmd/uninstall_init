@@ -1,0 +1,21 @@
+#!/bin/bash
+#
+# 卸载前：停掉服务，并清理早期版本（nftables 网关模式）留下的规则。
+# 不清理的话，卸载完局域网设备会莫名其妙地走不了网。
+# 当前版本走的是 TUN 模式，虚拟网卡随内核退出自动消失，这里只是兜底。
+
+set -u
+
+CMD_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)"
+if [ -n "$CMD_DIR" ] && [ -x "${CMD_DIR}/main" ]; then
+    "${CMD_DIR}/main" stop
+fi
+
+if command -v nft >/dev/null 2>&1; then
+    nft delete table ip fnos_mihomo 2>/dev/null
+    nft delete table ip6 fnos_mihomo 2>/dev/null
+fi
+ip rule del fwmark 0x1 lookup 100 2>/dev/null
+ip route del local 0.0.0.0/0 dev lo table 100 2>/dev/null
+
+exit 0

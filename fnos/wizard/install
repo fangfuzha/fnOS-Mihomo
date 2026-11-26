@@ -1,0 +1,59 @@
+[
+ {
+  "stepTitle": "代理设置",
+  "items": [
+   {
+    "type": "tips",
+    "helpText": "这里只填初始值，装好后都能在应用面板里随时改。订阅链接留空也没关系，装好后在面板里添加最方便。"
+   },
+   {
+    "type": "text",
+    "field": "wizard_sub_url",
+    "label": "订阅链接（可留空）"
+   },
+   {
+    "type": "text",
+    "field": "wizard_mixed_port",
+    "label": "代理端口",
+    "initValue": "7890"
+   },
+   {
+    "type": "text",
+    "field": "wizard_controller_port",
+    "label": "控制端口",
+    "initValue": "9090"
+   },
+   {
+    "type": "text",
+    "field": "wizard_secret",
+    "label": "控制密钥（可留空）"
+   },
+   {
+    "type": "select",
+    "field": "wizard_mode",
+    "label": "运行模式",
+    "initValue": "rule",
+    "options": [
+     {
+      "label": "规则模式（推荐，国内直连、国外走代理）",
+      "value": "rule"
+     },
+     {
+      "label": "全局模式（全部走代理）",
+      "value": "global"
+     },
+     {
+      "label": "直连模式（不启用代理）",
+      "value": "direct"
+     }
+    ]
+   },
+   {
+    "type": "switch",
+    "field": "wizard_allow_lan",
+    "label": "允许局域网设备使用本机代理端口",
+    "initValue": "false"
+   }
+  ]
+ }
+]

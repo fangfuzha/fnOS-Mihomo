@@ -1,0 +1,15 @@
+# 统一行尾：仓库里的文本一律用 LF 存、也一律以 LF 检出。
+#
+# 为什么必须写死：fnos/cmd/* 下的脚本是要拿到 NAS 上用 bash 执行的，
+# 一旦被换成 CRLF， 会被当成命令的一部分，执行时直接报 "command not found"。
+# 只靠每个人本机的 core.autocrlf 是靠不住的 —— Windows 上默认就是 true。
+* text=auto eol=lf
+
+# 二进制不做行尾转换，也不当文本 diff。
+*.png binary
+*.gz binary
+*.zip binary
+*.tgz binary
+*.dat binary
+*.mmdb binary
+*.fpk binary

@@ -1,0 +1,113 @@
+name: 发布
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: 打包并发布
+    # 在 Linux runner 上打包：fnpack 按运行平台自动选，
+    # scripts build 会把 linux-amd64 那一份下到 build/fnpack/。
+    runs-on: ubuntu-latest
+    permissions:
+      # 只有这个 job 需要写权限（发 Release）。
+      contents: write
+    env:
+      # 没配这个密钥就跳过「更新 FnDepot 应用源」那一步，
+      # Release 照发。
+      FNDEPOT_TOKEN: ${{ secrets.FNDEPOT_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          # 缓存 Go 模块与编译缓存。
+          cache: true
+
+      - name: 算缓存键
+        id: cachekey
+        shell: bash
+        run: echo "date=$(date -u +%Y%m%d)" >> "$GITHUB_OUTPUT"
+
+      - name: 缓存打包资源
+        uses: actions/cache@v4
+        with:
+          path: assets
+          # 按天分桶：geodata 与第三方面板跟的是 latest，
+          # 钉死一个键的话下载脚本会认为文件已存在，latest 就冻住了。
+          key: assets-${{ vars.MIHOMO_VERSION }}-${{ vars.GEODATA_VERSION }}-${{ hashFiles('scripts/fetchmihomo.go', 'scripts/fetchgeo.go', 'scripts/fetchdashboard.go') }}-${{ steps.cachekey.outputs.date }}
+
+      - name: 缓存 fnpack 打包器
+        uses: actions/cache@v4
+        with:
+          path: build/fnpack
+          key: fnpack-${{ runner.os }}-${{ hashFiles('scripts/fetchfnpack.go') }}
+
+      - name: 准备 mihomo 内核
+        run: go run ./scripts fetch_mihomo
+        env:
+          MIHOMO_VERSION: ${{ vars.MIHOMO_VERSION }}
+
+      - name: 准备 geodata
+        run: go run ./scripts fetch_geodata
+        env:
+          GEODATA_VERSION: ${{ vars.GEODATA_VERSION }}
+
+      - name: 准备第三方面板
+        run: go run ./scripts fetch_dashboard
+
+      - name: 打包
+        # 打包流程在 scripts/build.go 里，唯一实现，跨平台。
+        # 产物名带版本号（Mihomo-<版本>-<架构>.fpk）：FnDepot 规范要求
+        # 「版本号 + 架构」的包文件视为不可变，同名文件换内容，
+        # 客户端缓存会让一部分人永远装到旧包。
+        run: go run ./scripts build all
+        env:
+          # 配了这两项就签出可上架应用中心的包；没配就是未签名包。
+          FNPACK_KEY: ${{ secrets.FNPACK_KEY }}
+          FNPACK_CERT: ${{ secrets.FNPACK_CERT }}
+
+      - name: 核对版本号
+        # tag 与 manifest 的版本必须一致：产物名是按 manifest 版本拼的，
+        # 对不上就找不到文件。
+        shell: bash
+        run: |
+          set -e
+          MANIFEST_VERSION="$(sed -n 's/^version[[:space:]]*=[[:space:]]*//p' fnos/manifest | head -1)"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            TAG_VERSION="${GITHUB_REF_NAME#v}"
+            if [ "$TAG_VERSION" != "$MANIFEST_VERSION" ]; then
+              echo "tag ($GITHUB_REF_NAME) 与 manifest 版本 ($MANIFEST_VERSION) 不一致"
+              exit 1
+            fi
+          fi
+          echo "版本：$MANIFEST_VERSION"
+
+      - name: 发布 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/Mihomo-*-x86.fpk
+            build/Mihomo-*-arm64.fpk
+          generate_release_notes: true
+
+      - name: 更新 FnDepot 应用源
+        # 客户端只认源仓库里的 fnpack.json：版本号不写进去，
+        # 客户端就看不到这次更新。
+        # 这步必须在发 Release 之后 —— 索引里的下载地址要先能下得到。
+        if: ${{ env.FNDEPOT_TOKEN != '' }}
+        shell: bash
+        run: |
+          set -e
+          VERSION="$(sed -n 's/^version[[:space:]]*=[[:space:]]*//p' fnos/manifest | head -1)"
+          go run ./scripts fndepot publish \
+            --icon fnos/ICON.PNG \
+            --fpk "x86=build/Mihomo-${VERSION}-x86.fpk" \
+            --fpk "arm=build/Mihomo-${VERSION}-arm64.fpk"

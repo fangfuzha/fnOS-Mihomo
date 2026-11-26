@@ -1,0 +1,22 @@
+#!/bin/bash
+#
+# 安装前检查：确认系统具备运行 mihomo 内核的基本条件。
+# 这里不做硬性拦截，只把问题写进用户可见信息，装好后仍可进面板排查。
+
+set -u
+
+issues=0
+
+# 1. 内核依赖的 glibc 版本
+if ! command -v ldd >/dev/null 2>&1; then
+    echo "系统缺少 ldd，无法校验内核依赖，请确认系统完整性。" > "$TRIM_TEMP_LOGFILE"
+    issues=$((issues + 1))
+fi
+
+# 2. TUN 设备（NAS 本机接管需要它，内核靠它创建虚拟网卡）
+if [ ! -c /dev/net/tun ]; then
+    echo "未检测到 /dev/net/tun，NAS 本机接管模式不可用；本地代理不受影响。" > "$TRIM_TEMP_LOGFILE"
+    issues=$((issues + 1))
+fi
+
+exit 0

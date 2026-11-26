@@ -1,0 +1,41 @@
+# 注意：gitignore 只支持整行注释，不支持行尾注释（pattern # 注释 会被当成模式的一部分）。
+
+# ---- 构建产物 ----
+# scripts build 的暂存目录（每个架构一个）
+/build/
+# 打好的安装包（build/Mihomo-<版本>-x86.fpk / build/Mihomo-<版本>-arm64.fpk）。
+# 它们本来就落在 /build/ 里，这条是兜底，防止产物落到别处被提交。
+*.fpk
+# fnpack 打包器（scripts fetch_fnpack 下载到 build/fnpack/）和打好的安装包
+# （build/Mihomo-*.fpk）都落在 /build/ 下，上面那条已经盖住了，不用再单列。
+
+# ---- 随包分发的内核与数据（体积大，见 DEVELOPMENT.md「assets 不进版本库」）----
+# mihomo 内核 .gz、geodata、第三方面板压缩包
+/assets/
+# 打包时生成的内核与 geodata 副本（不是打包输入）
+/fnos/app/bin/
+
+# ---- 本地环境 ----
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.env
+.env.*
+# 模板不含密钥，要进版本库
+!.env.example
+# NAS 的 host key，机器相关
+known_hosts
+
+# ---- 编辑器 / 系统 ----
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ---- 日志与临时文件 ----
+*.log
+*.tmp
+# 临时工作目录（验证脚本用，别提交）
+/.tmp_*/

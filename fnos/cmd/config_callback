@@ -1,0 +1,69 @@
+#!/bin/bash
+#
+# 配置变更后：把向导里的新值写回 config.env，然后重启服务。
+#
+# 两条规矩：
+#   1. 留空 = 保持原值。飞牛的配置向导不会回填当前值，表单提交上来的空字段
+#      如果直接覆盖，用户只改个端口就会把订阅链接一起清空。
+#   2. 单行替换而不是整份重写，避免把没在表单里出现的项弄丢。
+
+set -u
+
+CMD_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)"
+ENV_FILE="${TRIM_PKGETC}/config.env"
+
+if [ ! -f "$ENV_FILE" ]; then
+    echo "配置文件缺失：${ENV_FILE}" > "$TRIM_TEMP_LOGFILE"
+    exit 1
+fi
+
+# 写入单个键；值统一用 %q 转义，空格与引号都不会破坏格式
+set_env() {
+    key="$1"
+    value="$2"
+    line="$(printf "%s=%q" "$key" "$value")"
+    tmp="${ENV_FILE}.tmp"
+
+    grep -v "^${key}=" "$ENV_FILE" > "$tmp" 2>/dev/null
+    printf "%s\n" "$line" >> "$tmp"
+    mv "$tmp" "$ENV_FILE"
+    chmod 600 "$ENV_FILE" 2>/dev/null
+}
+
+if [ -n "${wizard_sub_url:-}" ]; then
+    set_env SUB_URL "$wizard_sub_url"
+fi
+
+case "${wizard_mixed_port:-}" in
+"" | *[!0-9]*) ;;
+*) set_env MIXED_PORT "$wizard_mixed_port" ;;
+esac
+
+case "${wizard_controller_port:-}" in
+"" | *[!0-9]*) ;;
+*) set_env CONTROLLER_PORT "$wizard_controller_port" ;;
+esac
+
+if [ -n "${wizard_secret:-}" ]; then
+    set_env CONTROLLER_SECRET "$wizard_secret"
+fi
+
+if [ -n "${wizard_mode:-}" ]; then
+    set_env MODE "$wizard_mode"
+fi
+
+if [ -n "${wizard_rules:-}" ]; then
+    set_env RULES_MODE "$wizard_rules"
+fi
+
+if [ -n "${wizard_allow_lan:-}" ]; then
+    set_env ALLOW_LAN "$wizard_allow_lan"
+fi
+
+# 重启使新配置生效。config_init 可能已被系统调用过，这里再做一次是幂等的。
+if [ -n "$CMD_DIR" ] && [ -x "${CMD_DIR}/main" ]; then
+    "${CMD_DIR}/main" stop
+    "${CMD_DIR}/main" start
+fi
+
+exit 0

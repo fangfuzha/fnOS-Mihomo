@@ -1,0 +1,21 @@
+appname               = Mihomo
+version               = 1.0.0
+display_name          = Mihomo 代理
+desc                  = 在飞牛 NAS 上运行 Mihomo 内核的本地代理应用。支持订阅管理、节点切换与策略组选择，并可让 NAS 本机出站流量（下载中心、Docker 拉镜像、系统更新）走代理；局域网设备也能把本机当代理使用。
+platform              = x86
+source                = thirdparty
+maintainer            = fangfuzha
+maintainer_url        = https://github.com/fangfuzha/fnOS-Mihomo
+distributor           = fangfuzha
+distributor_url       = https://github.com/fangfuzha/fnOS-Mihomo
+os_min_version        = 0.9.0
+
+desktop_uidir         = ui
+desktop_applaunchname = Mihomo.Main
+
+ctl_stop              = true
+service_port          = 8765
+checkport             = true
+disable_authorization_path = true
+
+changelog             = 1.0.0 首个版本：Mihomo 内核本地代理。支持订阅链接管理（vless/vmess/trojan/ss/hysteria2/tuic）、节点与策略组切换、国内直连国外代理的分流规则、NAS 本机出站流量接管（TUN 模式，不改动飞牛自身防火墙规则）；面板可设置访问密码，未设置时保持免登录。

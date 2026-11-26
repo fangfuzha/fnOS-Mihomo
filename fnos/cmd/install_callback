@@ -1,0 +1,35 @@
+#!/bin/bash
+#
+# 安装后：把向导收集到的值落盘成 config.env，补齐可执行位。
+
+set -u
+
+ENV_FILE="${TRIM_PKGETC}/config.env"
+CMD_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd)"
+
+mkdir -p "${TRIM_PKGVAR}" "${TRIM_PKGETC}" 2>/dev/null
+
+# fpk 打包会丢掉可执行位，装完立刻补回来
+chmod +x "${TRIM_APPDEST}/bin/panel" 2>/dev/null
+chmod +x "${TRIM_APPDEST}/bin/mihomo" 2>/dev/null
+if [ -n "$CMD_DIR" ]; then
+    chmod +x "${CMD_DIR}"/* 2>/dev/null
+fi
+
+# 用 %q 转义写入，值里带空格、引号、$ 都不会破坏文件格式。
+# 文件只对应用用户可读。
+umask 077
+{
+    printf "SUB_URL=%q\n" "${wizard_sub_url:-}"
+    printf "MIXED_PORT=%q\n" "${wizard_mixed_port:-7890}"
+    printf "CONTROLLER_PORT=%q\n" "${wizard_controller_port:-9090}"
+    printf "CONTROLLER_SECRET=%q\n" "${wizard_secret:-}"
+    printf "MODE=%q\n" "${wizard_mode:-rule}"
+    printf "RULES_MODE=%q\n" "${wizard_rules:-balanced}"
+    printf "ALLOW_LAN=%q\n" "${wizard_allow_lan:-false}"
+} > "$ENV_FILE"
+chmod 600 "$ENV_FILE"
+
+echo "[fnos] $(date "+%Y-%m-%d %H:%M:%S") - 安装完成，配置已写入 ${ENV_FILE}" >> "${TRIM_PKGVAR}/mihomo-panel.log" 2>/dev/null
+
+exit 0

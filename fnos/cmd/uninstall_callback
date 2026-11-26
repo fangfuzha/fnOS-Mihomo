@@ -1,0 +1,17 @@
+#!/bin/bash
+#
+# 卸载后：按用户在向导里的选择决定要不要连数据一起删。
+# 默认保留订阅与配置，重新安装后还在。
+
+set -u
+
+if [ "${wizard_data_action:-keep}" = "remove" ]; then
+    # 用 ${VAR:?} 拦住变量为空的情况 —— 万一 TRIM_PKGVAR 没传进来，
+    # 这条命令会变成 rm -rf /*，必须先让它在这里失败。
+    if [ -n "${TRIM_PKGVAR:-}" ] && [ "${TRIM_PKGVAR}" != "/" ]; then
+        rm -rf "${TRIM_PKGVAR:?}"/* 2>/dev/null
+    fi
+    rm -f "${TRIM_PKGETC:?}/config.env" 2>/dev/null
+fi
+
+exit 0
